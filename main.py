@@ -35,12 +35,11 @@ def get_claim_url(item: dict) -> str:
         r = requests.get(gp_url, headers=HEADERS, allow_redirects=False, timeout=10)
         location = r.headers.get("location", "").strip()
         if location:
-            print(f"    🔗 Redirected: {gp_url} → {location}")
+            print(f"    🔗 {gp_url} → {location}")
             return location
-        print(f"    ⚠️ No redirect found, using original: {gp_url}")
         return gp_url
     except Exception as e:
-        print(f"    ⚠️ Error getting redirect: {e}")
+        print(f"    ⚠️ {e}")
         return gp_url
 
 def send_photo(item: dict, emoji: str = "🎮") -> bool:
@@ -56,15 +55,22 @@ def send_photo(item: dict, emoji: str = "🎮") -> bool:
         f"📌 How to Claim\n{item.get('instructions', '')}"
     )
 
+    # دکمه با رنگ سبز (Bot API 9.4)
+    inline_keyboard = {
+        "inline_keyboard": [[
+            {
+                "text": "✅ Claim Now",
+                "url": claim_url,
+                "style": "success"   # سبز | "primary" = آبی | "danger" = قرمز
+            }
+        ]]
+    }
+
     payload = {
         "chat_id": CHAT_ID,
         "photo": item.get("image", ""),
         "caption": caption,
-        "reply_markup": json.dumps({
-            "inline_keyboard": [[
-                {"text": "✅ Claim Now", "url": claim_url}
-            ]]
-        })
+        "reply_markup": json.dumps(inline_keyboard)
     }
 
     resp = requests.post(f"{TELEGRAM_API}/sendPhoto", data=payload, timeout=15)
@@ -76,14 +82,13 @@ def send_photo(item: dict, emoji: str = "🎮") -> bool:
 
 def process(url: str, seen: set, emoji: str):
     try:
-        r = requests.get(url, timeout=15)
-        data = r.json()
+        data = requests.get(url, timeout=15).json()
     except Exception as e:
         print(f"  ❌ Fetch error: {e}")
         return
 
     if not isinstance(data, list):
-        print(f"  ❌ Unexpected response: {str(data)[:200]}")
+        print(f"  ❌ Unexpected: {str(data)[:200]}")
         return
 
     new_items = [i for i in data if str(i.get("id")) not in seen]
