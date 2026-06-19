@@ -1,5 +1,7 @@
 # 🎮 Free Games Telegram Bot
 
+> 🔴 **Live Example:** [@Lootigo](https://t.me/Lootigo) — Daily free games, DLCs and in-game items from Steam, Epic, Ubisoft, PlayStation, Xbox & Mobile
+
 A fully automated bot that fetches free games and loot from **GamerPower** every 30 minutes and sends them to your Telegram channel — powered by **GitHub Actions** (100% free, no server needed).
 
 ---
