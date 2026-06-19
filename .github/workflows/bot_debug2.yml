@@ -27,4 +27,4 @@ jobs:
         run: pip install requests
 
       - name: Run bot
-        run: python debug.py
+        run: python debug2.py
