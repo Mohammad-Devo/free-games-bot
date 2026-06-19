@@ -30,6 +30,8 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
+          GAMERPOWER_GAME_URL: ${{ secrets.GAMERPOWER_GAME_URL }}
+          GAMERPOWER_LOOT_URL: ${{ secrets.GAMERPOWER_LOOT_URL }}
         run: python main.py
 
       - name: Save seen IDs to repo
