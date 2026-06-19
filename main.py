@@ -13,7 +13,7 @@ GAMERPOWER_LOOT = "https://www.gamerpower.com/api/giveaways?type=loot"
 
 TELEGRAM_API = f"https://api.telegram.org/bot{BOT_TOKEN}"
 
-# ── Seen IDs (deduplication — ذخیره توی repo) ────────────────────────────────
+# ── Seen IDs ──────────────────────────────────────────────────────────────────
 def load_seen() -> set:
     if os.path.exists(SEEN_FILE):
         with open(SEEN_FILE) as f:
@@ -24,26 +24,37 @@ def save_seen(seen: set):
     with open(SEEN_FILE, "w") as f:
         json.dump(sorted(list(seen)), f, indent=2)
 
-# ── Get final URL (مثل n8n: اول ریدایرکت رو بگیر) ────────────────────────────
+# ── Get final claim URL ───────────────────────────────────────────────────────
 def get_claim_url(item: dict) -> str:
-    # GamerPower توی API فیلد open_giveaway داره که لینک صفحه‌شونه
-    # اون صفحه ریدایرکت میکنه به لینک اصلی — ما همون هدر location رو میخوایم
-    url = item.get("open_giveaway", "")
-    if not url:
+    """
+    GamerPower API فیلدهای مختلف داره:
+    - open_giveaway      : لینک صفحه GamerPower (JS redirect - کار نمیکنه)
+    - open_giveaway_url  : لینک مستقیم به استیم/اپیک/GOG (همینو میخوایم!)
+    """
+    # اول open_giveaway_url رو امتحان کن (لینک مستقیم)
+    direct = item.get("open_giveaway_url", "").strip()
+    if direct:
+        return direct
+    
+    # اگه نبود، از open_giveaway با HTTP redirect بگیر
+    gp_url = item.get("open_giveaway", "").strip()
+    if not gp_url:
         return ""
+    
     try:
-        r = requests.get(url, allow_redirects=False, timeout=10)
-        location = r.headers.get("location", "")
+        r = requests.get(gp_url, allow_redirects=False, timeout=10)
+        location = r.headers.get("location", "").strip()
         if location:
             return location
-        # اگه ریدایرکت نبود، همون URL رو برگردون
-        return url
-    except Exception:
-        return url
+    except Exception as e:
+        print(f"    ⚠️ redirect error: {e}")
+    
+    return gp_url
 
 # ── Send photo to Telegram ────────────────────────────────────────────────────
-def send_photo(item: dict, emoji: str = "🎮"):
+def send_photo(item: dict, emoji: str = "🎮") -> bool:
     claim_url = get_claim_url(item)
+    print(f"    🔗 Claim URL: {claim_url}")
 
     caption = (
         f"{emoji} {item.get('title', '')}\n\n"
@@ -68,11 +79,17 @@ def send_photo(item: dict, emoji: str = "🎮"):
 
     resp = requests.post(f"{TELEGRAM_API}/sendPhoto", data=payload, timeout=15)
     if not resp.ok:
-        print(f"  ⚠️  Telegram error: {resp.status_code} - {resp.text[:200]}")
+        print(f"  ⚠️  Telegram error: {resp.status_code} - {resp.text[:300]}")
         return False
-    else:
-        print(f"  ✅ Sent: {item.get('title', '')} → {claim_url}")
-        return True
+    print(f"  ✅ Sent: {item.get('title', '')}")
+    return True
+
+# ── Debug: print all URL fields of first item ─────────────────────────────────
+def debug_item(item: dict):
+    print("  🔍 URL fields in API response:")
+    for k, v in item.items():
+        if "url" in k.lower() or "link" in k.lower() or "giveaway" in k.lower():
+            print(f"    {k}: {v}")
 
 # ── Fetch & process one category ─────────────────────────────────────────────
 def process(url: str, seen: set, emoji: str):
@@ -84,17 +101,20 @@ def process(url: str, seen: set, emoji: str):
         return
 
     if not isinstance(data, list):
-        print(f"  ❌ Unexpected response: {str(data)[:100]}")
+        print(f"  ❌ Unexpected response: {str(data)[:200]}")
         return
 
     new_items = [i for i in data if str(i.get("id")) not in seen]
-    print(f"  Found {len(data)} total | {len(new_items)} new | {len(data)-len(new_items)} already sent")
+    print(f"  Total: {len(data)} | New: {len(new_items)} | Skipped: {len(data)-len(new_items)}")
+
+    # اولین آیتم جدید رو debug کن
+    if new_items:
+        debug_item(new_items[0])
 
     for item in new_items:
-        item_id = str(item.get("id", ""))
         ok = send_photo(item, emoji)
         if ok:
-            seen.add(item_id)
+            seen.add(str(item.get("id", "")))
         time.sleep(30)
 
 # ── Main ──────────────────────────────────────────────────────────────────────
@@ -102,15 +122,14 @@ def main():
     seen = load_seen()
     print(f"📋 Loaded {len(seen)} seen IDs")
 
-    print("🎮 Processing Games...")
+    print("\n🎮 Processing Games...")
     process(GAMERPOWER_GAME, seen, "🎮")
 
-    print("✨ Processing Loot/DLC...")
+    print("\n✨ Processing Loot/DLC...")
     process(GAMERPOWER_LOOT, seen, "✨")
 
     save_seen(seen)
-    print(f"💾 Saved {len(seen)} seen IDs")
-    print("Done.")
+    print(f"\n💾 Saved {len(seen)} seen IDs — Done.")
 
 if __name__ == "__main__":
     main()
