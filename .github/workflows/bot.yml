@@ -2,8 +2,11 @@ name: Free Games Bot
 
 on:
   schedule:
-    - cron: "*/30 * * * *"   # every 30 minutes
-  workflow_dispatch:           # manual run button in GitHub UI
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write   # لازمه که بتونه commit کنه
 
 jobs:
   run:
@@ -12,6 +15,8 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -21,16 +26,17 @@ jobs:
       - name: Install dependencies
         run: pip install requests
 
-      # Restore seen_ids.json from cache so duplicates are remembered
-      - name: Restore seen IDs cache
-        uses: actions/cache@v4
-        with:
-          path: seen_ids.json
-          key: seen-ids-${{ github.run_id }}
-          restore-keys: seen-ids-
-
       - name: Run bot
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python main.py
+
+      # seen_ids.json رو توی خود repo ذخیره میکنه — پایدارترین روش
+      - name: Save seen IDs to repo
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add seen_ids.json
+          git diff --staged --quiet || git commit -m "chore: update seen_ids [skip ci]"
+          git push
