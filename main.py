@@ -24,14 +24,14 @@ def pe(emoji_id: str, fallback: str) -> str:
     return f'<tg-emoji emoji-id="{emoji_id}">{fallback}</tg-emoji>'
 
 # آیدی‌های ایموجی پریوم (میتونی عوض کنی)
-EMOJI_GAME    = pe("5309984423003823061", "🎮")   # کنترلر بازی
-EMOJI_DESC    = pe("5368324170671202286", "📝")   # یادداشت
-EMOJI_PLATFORM= pe("5440539497383087970", "💻")   # لپتاپ
-EMOJI_TYPE    = pe("5472164874456909070", "📂")   # پوشه
-EMOJI_PRICE   = pe("5471952986970267163", "💸")   # پول
-EMOJI_DATE    = pe("5445284980978621387", "⏳")   # ساعت شنی
-EMOJI_HOW     = pe("5447644880824181073", "📌")   # پین
-EMOJI_LOOT    = pe("5188450271998577553", "✨")   # ستاره
+EMOJI_GAME    = pe("5467583879948803288", "🎮")   # کنترلر بازی
+EMOJI_DESC    = pe("5334882760735598374", "📝")   # یادداشت
+EMOJI_PLATFORM= pe("5431376038628171216", "💻")   # لپتاپ
+EMOJI_TYPE    = pe("5431721976769027887", "📂")   # پوشه
+EMOJI_PRICE   = pe("5375296873982604963", "💸")   # پول
+EMOJI_DATE    = pe("5451732530048802485", "⏳")   # ساعت شنی
+EMOJI_HOW     = pe("5318986077455795572", "📌")   # پین
+EMOJI_LOOT    = pe("5467583879948803288", "🎮")   # ستاره
 
 def load_seen() -> set:
     if os.path.exists(SEEN_FILE):
