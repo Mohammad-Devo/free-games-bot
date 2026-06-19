@@ -25,10 +25,12 @@ def save_seen(seen: set):
         json.dump(list(seen), f)
 
 # ── Resolve redirect URL ──────────────────────────────────────────────────────
+# مثل n8n: فقط اولین ریدایرکت رو میگیره (هدر location) — followRedirect: false
 def resolve_redirect(url: str) -> str:
     try:
-        r = requests.get(url, allow_redirects=True, timeout=10)
-        return r.url
+        r = requests.get(url, allow_redirects=False, timeout=10)
+        location = r.headers.get("location", "")
+        return location if location else url
     except Exception:
         return url
 
