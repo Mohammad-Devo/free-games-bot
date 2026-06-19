@@ -17,6 +17,22 @@ HEADERS = {
     'Accept-Language': 'en-US,en;q=0.9',
 }
 
+# ── ایموجی پریوم ──────────────────────────────────────────────────────────────
+# فرمت: <tg-emoji emoji-id="ID">FALLBACK</tg-emoji>
+# اگه بات Premium نداشته باشه، همون fallback ایموجی معمولی نشون داده میشه
+def pe(emoji_id: str, fallback: str) -> str:
+    return f'<tg-emoji emoji-id="{emoji_id}">{fallback}</tg-emoji>'
+
+# آیدی‌های ایموجی پریوم (میتونی عوض کنی)
+EMOJI_GAME    = pe("5309984423003823061", "🎮")   # کنترلر بازی
+EMOJI_DESC    = pe("5368324170671202286", "📝")   # یادداشت
+EMOJI_PLATFORM= pe("5440539497383087970", "💻")   # لپتاپ
+EMOJI_TYPE    = pe("5472164874456909070", "📂")   # پوشه
+EMOJI_PRICE   = pe("5471952986970267163", "💸")   # پول
+EMOJI_DATE    = pe("5445284980978621387", "⏳")   # ساعت شنی
+EMOJI_HOW     = pe("5447644880824181073", "📌")   # پین
+EMOJI_LOOT    = pe("5188450271998577553", "✨")   # ستاره
+
 def load_seen() -> set:
     if os.path.exists(SEEN_FILE):
         with open(SEEN_FILE) as f:
@@ -42,26 +58,27 @@ def get_claim_url(item: dict) -> str:
         print(f"    ⚠️ {e}")
         return gp_url
 
-def send_photo(item: dict, emoji: str = "🎮") -> bool:
+def send_photo(item: dict, is_loot: bool = False) -> bool:
     claim_url = get_claim_url(item)
+    title_emoji = EMOJI_LOOT if is_loot else EMOJI_GAME
 
+    # کپشن با HTML و ایموجی پریوم
     caption = (
-        f"{emoji} {item.get('title', '')}\n\n"
-        f"📝 {item.get('description', '')}\n\n"
-        f"💻 Platform: {item.get('platforms', '')}\n"
-        f"📂 Type: #{item.get('type', '')}\n"
-        f"💸 Original Price: {item.get('worth', '')}\n"
-        f"⏳ Offer Ends: {item.get('end_date', '')}\n\n"
-        f"📌 How to Claim\n{item.get('instructions', '')}"
+        f"{title_emoji} <b>{item.get('title', '')}</b>\n\n"
+        f"{EMOJI_DESC} {item.get('description', '')}\n\n"
+        f"{EMOJI_PLATFORM} <b>Platform:</b> {item.get('platforms', '')}\n"
+        f"{EMOJI_TYPE} <b>Type:</b> #{item.get('type', '')}\n"
+        f"{EMOJI_PRICE} <b>Original Price:</b> {item.get('worth', '')}\n"
+        f"{EMOJI_DATE} <b>Offer Ends:</b> {item.get('end_date', '')}\n\n"
+        f"{EMOJI_HOW} <b>How to Claim</b>\n{item.get('instructions', '')}"
     )
 
-    # دکمه با رنگ سبز (Bot API 9.4)
     inline_keyboard = {
         "inline_keyboard": [[
             {
                 "text": "✅ Claim Now",
                 "url": claim_url,
-                "style": "success"   # سبز | "primary" = آبی | "danger" = قرمز
+                "style": "success"
             }
         ]]
     }
@@ -70,6 +87,7 @@ def send_photo(item: dict, emoji: str = "🎮") -> bool:
         "chat_id": CHAT_ID,
         "photo": item.get("image", ""),
         "caption": caption,
+        "parse_mode": "HTML",
         "reply_markup": json.dumps(inline_keyboard)
     }
 
@@ -80,7 +98,7 @@ def send_photo(item: dict, emoji: str = "🎮") -> bool:
     print(f"  ✅ Sent: {item.get('title', '')}")
     return True
 
-def process(url: str, seen: set, emoji: str):
+def process(url: str, seen: set, is_loot: bool = False):
     try:
         data = requests.get(url, timeout=15).json()
     except Exception as e:
@@ -95,7 +113,7 @@ def process(url: str, seen: set, emoji: str):
     print(f"  Total: {len(data)} | New: {len(new_items)} | Skipped: {len(data)-len(new_items)}")
 
     for item in new_items:
-        ok = send_photo(item, emoji)
+        ok = send_photo(item, is_loot=is_loot)
         if ok:
             seen.add(str(item.get("id", "")))
         time.sleep(30)
@@ -105,10 +123,10 @@ def main():
     print(f"📋 Loaded {len(seen)} seen IDs")
 
     print("\n🎮 Processing Games...")
-    process(GAMERPOWER_GAME, seen, "🎮")
+    process(GAMERPOWER_GAME, seen, is_loot=False)
 
     print("\n✨ Processing Loot/DLC...")
-    process(GAMERPOWER_LOOT, seen, "✨")
+    process(GAMERPOWER_LOOT, seen, is_loot=True)
 
     save_seen(seen)
     print(f"\n💾 Saved {len(seen)} seen IDs — Done.")
