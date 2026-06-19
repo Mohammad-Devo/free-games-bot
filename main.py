@@ -7,8 +7,8 @@ BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
 CHAT_ID   = os.environ["TELEGRAM_CHAT_ID"]
 SEEN_FILE = "seen_ids.json"
 
-GAMERPOWER_GAME = "https://www.gamerpower.com/api/giveaways?type=game"
-GAMERPOWER_LOOT = "https://www.gamerpower.com/api/giveaways?type=loot"
+GAMERPOWER_GAME = os.environ["GAMERPOWER_GAME_URL"]
+GAMERPOWER_LOOT = os.environ["GAMERPOWER_LOOT_URL"]
 TELEGRAM_API    = f"https://api.telegram.org/bot{BOT_TOKEN}"
 
 HEADERS = {
