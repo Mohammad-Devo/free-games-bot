@@ -3,17 +3,20 @@ import json
 import time
 import requests
 
-# ── Config ────────────────────────────────────────────────────────────────────
 BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
 CHAT_ID   = os.environ["TELEGRAM_CHAT_ID"]
 SEEN_FILE = "seen_ids.json"
 
 GAMERPOWER_GAME = "https://www.gamerpower.com/api/giveaways?type=game"
 GAMERPOWER_LOOT = "https://www.gamerpower.com/api/giveaways?type=loot"
+TELEGRAM_API    = f"https://api.telegram.org/bot{BOT_TOKEN}"
 
-TELEGRAM_API = f"https://api.telegram.org/bot{BOT_TOKEN}"
+HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36',
+    'Accept': 'text/html,application/xhtml+xml',
+    'Accept-Language': 'en-US,en;q=0.9',
+}
 
-# ── Seen IDs ──────────────────────────────────────────────────────────────────
 def load_seen() -> set:
     if os.path.exists(SEEN_FILE):
         with open(SEEN_FILE) as f:
@@ -24,37 +27,24 @@ def save_seen(seen: set):
     with open(SEEN_FILE, "w") as f:
         json.dump(sorted(list(seen)), f, indent=2)
 
-# ── Get final claim URL ───────────────────────────────────────────────────────
 def get_claim_url(item: dict) -> str:
-    """
-    GamerPower API فیلدهای مختلف داره:
-    - open_giveaway      : لینک صفحه GamerPower (JS redirect - کار نمیکنه)
-    - open_giveaway_url  : لینک مستقیم به استیم/اپیک/GOG (همینو میخوایم!)
-    """
-    # اول open_giveaway_url رو امتحان کن (لینک مستقیم)
-    direct = item.get("open_giveaway_url", "").strip()
-    if direct:
-        return direct
-    
-    # اگه نبود، از open_giveaway با HTTP redirect بگیر
     gp_url = item.get("open_giveaway", "").strip()
     if not gp_url:
         return ""
-    
     try:
-        r = requests.get(gp_url, allow_redirects=False, timeout=10)
+        r = requests.get(gp_url, headers=HEADERS, allow_redirects=False, timeout=10)
         location = r.headers.get("location", "").strip()
         if location:
+            print(f"    🔗 Redirected: {gp_url} → {location}")
             return location
+        print(f"    ⚠️ No redirect found, using original: {gp_url}")
+        return gp_url
     except Exception as e:
-        print(f"    ⚠️ redirect error: {e}")
-    
-    return gp_url
+        print(f"    ⚠️ Error getting redirect: {e}")
+        return gp_url
 
-# ── Send photo to Telegram ────────────────────────────────────────────────────
 def send_photo(item: dict, emoji: str = "🎮") -> bool:
     claim_url = get_claim_url(item)
-    print(f"    🔗 Claim URL: {claim_url}")
 
     caption = (
         f"{emoji} {item.get('title', '')}\n\n"
@@ -79,19 +69,11 @@ def send_photo(item: dict, emoji: str = "🎮") -> bool:
 
     resp = requests.post(f"{TELEGRAM_API}/sendPhoto", data=payload, timeout=15)
     if not resp.ok:
-        print(f"  ⚠️  Telegram error: {resp.status_code} - {resp.text[:300]}")
+        print(f"  ⚠️ Telegram error: {resp.status_code} - {resp.text[:300]}")
         return False
     print(f"  ✅ Sent: {item.get('title', '')}")
     return True
 
-# ── Debug: print all URL fields of first item ─────────────────────────────────
-def debug_item(item: dict):
-    print("  🔍 URL fields in API response:")
-    for k, v in item.items():
-        if "url" in k.lower() or "link" in k.lower() or "giveaway" in k.lower():
-            print(f"    {k}: {v}")
-
-# ── Fetch & process one category ─────────────────────────────────────────────
 def process(url: str, seen: set, emoji: str):
     try:
         r = requests.get(url, timeout=15)
@@ -107,17 +89,12 @@ def process(url: str, seen: set, emoji: str):
     new_items = [i for i in data if str(i.get("id")) not in seen]
     print(f"  Total: {len(data)} | New: {len(new_items)} | Skipped: {len(data)-len(new_items)}")
 
-    # اولین آیتم جدید رو debug کن
-    if new_items:
-        debug_item(new_items[0])
-
     for item in new_items:
         ok = send_photo(item, emoji)
         if ok:
             seen.add(str(item.get("id", "")))
         time.sleep(30)
 
-# ── Main ──────────────────────────────────────────────────────────────────────
 def main():
     seen = load_seen()
     print(f"📋 Loaded {len(seen)} seen IDs")
