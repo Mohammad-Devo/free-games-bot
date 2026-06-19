@@ -29,6 +29,8 @@ EMOJI_DATE     = pe("5451732530048802485", "⏳")
 EMOJI_HOW      = pe("5318986077455795572", "📌")
 EMOJI_LOOT     = pe("5467583879948803288", "🎮")
 
+MAX_CAPTION = 1024
+
 def load_seen():
     if os.path.exists(SEEN_FILE):
         with open(SEEN_FILE) as f:
@@ -54,19 +56,54 @@ def get_claim_url(item):
         print(f"    error: {e}")
         return gp_url
 
-def send_photo(item, is_loot=False):
-    claim_url = get_claim_url(item)
-    title_emoji = EMOJI_LOOT if is_loot else EMOJI_GAME
+def truncate(text, max_len):
+    if len(text) <= max_len:
+        return text
+    return text[:max_len - 3] + "..."
 
+def build_caption(item, title_emoji):
+    # توضیحات رو کوتاه میکنیم تا caption از 1024 کاراکتر بیشتر نشه
+    title       = item.get('title', '')
+    description = item.get('description', '')
+    platforms   = item.get('platforms', '')
+    type_       = item.get('type', '')
+    worth       = item.get('worth', '')
+    end_date    = item.get('end_date', '')
+    instructions= item.get('instructions', '')
+
+    # اول بدون کوتاه کردن بساز
     caption = (
-        f"{title_emoji} <b>{item.get('title', '')}</b>\n\n"
-        f"{EMOJI_DESC} {item.get('description', '')}\n\n"
-        f"{EMOJI_PLATFORM} <b>Platform:</b> {item.get('platforms', '')}\n"
-        f"{EMOJI_TYPE} <b>Type:</b> #{item.get('type', '')}\n"
-        f"{EMOJI_PRICE} <b>Original Price:</b> {item.get('worth', '')}\n"
-        f"{EMOJI_DATE} <b>Offer Ends:</b> {item.get('end_date', '')}\n\n"
-        f"{EMOJI_HOW} <b>How to Claim</b>\n{item.get('instructions', '')}"
+        f"{title_emoji} <b>{title}</b>\n\n"
+        f"{EMOJI_DESC} {description}\n\n"
+        f"{EMOJI_PLATFORM} <b>Platform:</b> {platforms}\n"
+        f"{EMOJI_TYPE} <b>Type:</b> #{type_}\n"
+        f"{EMOJI_PRICE} <b>Price:</b> {worth}\n"
+        f"{EMOJI_DATE} <b>Ends:</b> {end_date}\n\n"
+        f"{EMOJI_HOW} <b>How to Claim</b>\n{instructions}"
     )
+
+    # اگه طولانیه، description و instructions رو کوتاه کن
+    if len(caption) > MAX_CAPTION:
+        available = MAX_CAPTION - (len(caption) - len(description) - len(instructions))
+        half = max(available // 2, 50)
+        description  = truncate(description, half)
+        instructions = truncate(instructions, half)
+        caption = (
+            f"{title_emoji} <b>{title}</b>\n\n"
+            f"{EMOJI_DESC} {description}\n\n"
+            f"{EMOJI_PLATFORM} <b>Platform:</b> {platforms}\n"
+            f"{EMOJI_TYPE} <b>Type:</b> #{type_}\n"
+            f"{EMOJI_PRICE} <b>Price:</b> {worth}\n"
+            f"{EMOJI_DATE} <b>Ends:</b> {end_date}\n\n"
+            f"{EMOJI_HOW} <b>How to Claim</b>\n{instructions}"
+        )
+
+    return caption[:MAX_CAPTION]
+
+def send_photo(item, is_loot=False):
+    claim_url   = get_claim_url(item)
+    title_emoji = EMOJI_LOOT if is_loot else EMOJI_GAME
+    caption     = build_caption(item, title_emoji)
 
     payload = {
         "chat_id": CHAT_ID,
